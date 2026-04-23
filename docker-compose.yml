@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: phonebook-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB:-phone_book_demo}
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-root}
+    ports:
+      - "${DOCKER_PG_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/synthetic_phonebook.sql:/docker-entrypoint-initdb.d/01_synthetic_phonebook.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-phone_book_demo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  max-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phonebook-max-bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DB: ${PG_DB:-phone_book_demo}
+      PG_ADMIN_DB: ${PG_DB:-phone_book_demo}
+      PG_USER: ${PG_USER:-postgres}
+      PG_PASSWORD: ${PG_PASSWORD:-root}
+      PG_SCHEMA: ${PG_SCHEMA:-bot_test}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:2b}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FILE: ${LOG_FILE:-logs/phonebook.log}
+      MAX_TOKEN: ${MAX_TOKEN:-}
+      MAX_SKIP_UPDATES: ${MAX_SKIP_UPDATES:-true}
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
