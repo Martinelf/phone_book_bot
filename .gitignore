@@ -1,18 +1,18 @@
-  .env
-  .env.example
-  .venv/
-  venv/
-  __pycache__/
-  .pytest_cache/
-  .mypy_cache/
-  .ruff_cache/
-  logs/
-  *.log
-  *.pyc
-  sql/
-  .vscode/
-  .idea/
-  .DS_Store
-  Thumbs.db
-  sql/*
-  !sql/.gitkeep
+.env
+.env.example
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+  
+logs/
+*.log
+*.pyc
+sql/*
+!sql/.gitkeep
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
