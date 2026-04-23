@@ -1,6 +1,16 @@
-.env
-.venv/
-__pycache__/
-.pytest_cache/
-logs/
-*.pyc
+  .env
+  .env.example
+  .venv/
+  venv/
+  __pycache__/
+  .pytest_cache/
+  .mypy_cache/
+  .ruff_cache/
+  logs/
+  *.log
+  *.pyc
+  sql/
+  .vscode/
+  .idea/
+  .DS_Store
+  Thumbs.db
