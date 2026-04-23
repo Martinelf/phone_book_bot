@@ -1,0 +1,20 @@
+{"id":"pb-001","category":"nickname_department","query":"Нужен Лёха из отдела поднимателей пингвинов","expected_ids":[2,23],"note":"Прозвище плюс разговорное название отдела"}
+{"id":"pb-002","category":"role_department","query":"кто у нас руководитель ИТ инфраструктуры","expected_ids":[11],"note":"Роль плюс отдел"}
+{"id":"pb-003","category":"lastname_role","query":"найди проектного менеджера Иванова","expected_ids":[21],"note":"Фамилия плюс роль"}
+{"id":"pb-004","category":"role_only","query":"нужен финансовый менеджер","expected_ids":[5],"note":"Роль без имени"}
+{"id":"pb-005","category":"department_synonym","query":"кто из саппорта менеджер","expected_ids":[24],"note":"Синоним отдела плюс роль"}
+{"id":"pb-006","category":"specific_role","query":"нужен юрист по договорам","expected_ids":[32],"note":"Специфическая должность"}
+{"id":"pb-007","category":"nickname_department","query":"найди Пашу из закупок","expected_ids":[13],"note":"Алиас имени плюс отдел"}
+{"id":"pb-008","category":"nickname_department","query":"кто у нас Рома из IT","expected_ids":[11],"note":"Алиас имени плюс IT"}
+{"id":"pb-009","category":"nickname_department","query":"нужен Лёня из пингвинов","expected_ids":[16],"note":"Алиас имени плюс отдел"}
+{"id":"pb-010","category":"english_role","query":"найди data engineer","expected_ids":[18],"note":"Англоязычная роль"}
+{"id":"pb-011","category":"name_role","query":"нужен HR менеджер Дарья","expected_ids":[27],"note":"Имя плюс роль"}
+{"id":"pb-012","category":"role_department","query":"кто руководитель аналитики","expected_ids":[28],"note":"Роль плюс отдел"}
+{"id":"pb-013","category":"rare_role_name","query":"подниматель пингвинов Арсений","expected_ids":[30],"note":"Редкая должность плюс имя"}
+{"id":"pb-014","category":"name_role","query":"нужен аккаунт менеджер Юрий","expected_ids":[33],"note":"Должность плюс имя"}
+{"id":"pb-015","category":"inactive_filter","query":"нужен Артем сетевой","expected_ids":[],"expect_none":true,"note":"Неактивный сотрудник не должен вернуться"}
+{"id":"pb-016","category":"lastname_only","query":"найди Иванову","expected_ids":[22],"note":"Фамилия в женской форме"}
+{"id":"pb-017","category":"department_role","query":"кто у нас аналитик из data","expected_ids":[4,12,18,29],"note":"Англоязычный синоним отдела"}
+{"id":"pb-018","category":"role_department","query":"нужен менеджер поддержки","expected_ids":[24],"note":"Составная роль"}
+{"id":"pb-019","category":"role_only","query":"нужен системный администратор","expected_ids":[1,26],"note":"Несколько валидных кандидатов"}
+{"id":"pb-020","category":"name_only","query":"найди Арсения","expected_ids":[30],"note":"Редкое имя без отдела"}

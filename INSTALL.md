@@ -1,42 +1,115 @@
-# 🚀 Быстрый старт
+# Install
 
-## Шаг 1: Установить зависимости
-```powershell
+## Локальный запуск
+
+### 1. Создать окружение
+
+```bash
+conda create -n phonebook-bot python=3.11 -y
+conda activate phonebook-bot
+cd D:\DS\phone_book_bot-main
 pip install -r requirements.txt
 ```
 
-## Шаг 2: Установить Ollama (на Windows)
-1. Скачать отсюда: https://ollama.ai
-2. Запустить installer
-3. Открыть PowerShell и выполнить:
-```powershell
-ollama pull mistral
+### 2. Создать `.env`
+
+```bash
+copy .env.example .env
 ```
 
-## Шаг 3: Запустить Ollama сервер
-В отдельном терминале PowerShell:
-```powershell
-ollama serve
+Минимально проверь:
+
+```env
+PG_HOST=localhost
+PG_PORT=5432
+PG_DB=phone_book_demo
+PG_ADMIN_DB=postgres
+PG_USER=postgres
+PG_PASSWORD=1234
+PG_SCHEMA=bot_test
+MAX_TOKEN=твой_токен_бота
+MAX_SKIP_UPDATES=true
+LOG_LEVEL=INFO
+LOG_FILE=logs/phonebook.log
 ```
 
-## Шаг 4: Запустить бот
-В основном терминале:
-```powershell
+### 3. Поднять синтетическую БД
+
+```bash
+python scripts\init_synthetic_db.py
+```
+
+### 4. Запустить MAX-бота
+
+```bash
+python scripts\run_max_bot.py
+```
+
+### 5. Дополнительные режимы
+
+CLI:
+
+```bash
 python main.py
 ```
 
-## Тестовые запросы
+Streamlit:
 
-Попробуйте эти примеры:
-- `нужен сисадмин артём`
-- `найти менеджера Иванова`  
-- `директор отдела финансов`
+```bash
+python -m streamlit run apps\streamlit_app.py
+```
 
-## Что происходит под капотом
+Eval:
 
-1. **Парсинг**: LLM разбирает ваш запрос на компоненты (имя, должность, отдел)
-2. **Поиск**: Строится SQL запрос по распарсенным параметрам
-3. **Результаты**: Выводятся активные сотрудники с номерами телефонов
+```bash
+python scripts\run_eval.py
+```
 
-### Если Ollama недоступна
-Бот автоматически переключится на простой полнотекстовый поиск по имени и фамилии.
+Tests:
+
+```bash
+pytest
+```
+
+## Docker
+
+### 1. Заполни `.env`
+
+Особенно:
+
+- `PG_PASSWORD`
+- `MAX_TOKEN`
+
+### 2. Подними сервисы
+
+```bash
+docker compose up --build
+```
+
+### 3. Что внутри
+
+- `postgres` создаёт БД и применяет [sql/synthetic_phonebook.sql](D:/DS/phone_book_bot-main/sql/synthetic_phonebook.sql:1)
+- `max-bot` запускает [phonebook/max_bot.py](D:/DS/phone_book_bot-main/phonebook/max_bot.py:1)
+
+### 4. Остановить
+
+```bash
+docker compose down
+```
+
+Если нужен чистый сброс данных:
+
+```bash
+docker compose down -v
+```
+
+## Ollama
+
+Оционально. Бот работает и без неё.
+
+```bash
+ollama pull qwen3.5:2b
+ollama serve
+```
+
+Если Ollama недоступна, проект переключается на heuristic fallback.

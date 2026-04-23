@@ -1,13 +1,19 @@
-# виртуальное окружение
+.env
+.env.example
+.venv/
 venv/
-.env/
-
-# python cache
 __pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+  
+logs/
+*.log
 *.pyc
-
-# vscode
+sql/*
+!sql/.gitkeep
+!sql/phone_directory_search.sql
 .vscode/
-
-# системные файлы
+.idea/
 .DS_Store
+Thumbs.db

@@ -1,2 +1,6 @@
-psycopg2-binary==2.9.9
 requests==2.31.0
+python-dotenv==1.0.1
+pg8000==1.31.5
+streamlit==1.31.1
+pytest==8.3.5
+maxapi==1.0.0
