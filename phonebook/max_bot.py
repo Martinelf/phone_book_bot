@@ -6,6 +6,7 @@ import logging
 from maxapi import Bot, Dispatcher
 from maxapi.types import Command, MessageCreated
 
+from phonebook.auth import AuthDecision, authorize_max_event
 from phonebook.bot import resolve_phonebook_query
 from phonebook.config import get_settings
 from phonebook.logging_config import configure_logging
@@ -51,6 +52,40 @@ def _render_decision_text(decision) -> str:
     return header
 
 
+def _render_auth_denied(access: AuthDecision) -> str:
+    if access.reason == "missing_user_id":
+        return _ru(
+            r"\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c "
+            r"\u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442\u044c "
+            r"user id. \u041e\u0431\u0440\u0430\u0442\u0438\u0442\u0435\u0441\u044c "
+            r"\u043a \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0443."
+        )
+    if access.reason == "auth_backend_error":
+        return _ru(
+            r"\u0421\u0435\u0440\u0432\u0438\u0441 "
+            r"\u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u0438 "
+            r"\u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e "
+            r"\u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d. "
+            r"\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 "
+            r"\u043f\u043e\u043f\u044b\u0442\u043a\u0443 \u043f\u043e\u0437\u0436\u0435."
+        )
+    user_id_line = f"\n\nuser_id: {access.external_user_id}" if access.external_user_id else ""
+    return (
+        _ru(
+            r"\u0414\u043e\u0441\u0442\u0443\u043f \u043a "
+            r"\u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u043e\u043c\u0443 "
+            r"\u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0443 "
+            r"\u043d\u0435 \u0432\u044b\u0434\u0430\u043d. "
+            r"\u041f\u0435\u0440\u0435\u0434\u0430\u0439\u0442\u0435 "
+            r"\u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0443 "
+            r"\u0441\u0432\u043e\u0439 user_id \u0434\u043b\u044f "
+            r"\u0434\u043e\u0431\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0432 "
+            r"\u0441\u043f\u0438\u0441\u043e\u043a \u0434\u043e\u0441\u0442\u0443\u043f\u0430."
+        )
+        + user_id_line
+    )
+
+
 @dp.on_started()
 async def on_started() -> None:
     logger.info("MAX bot polling started")
@@ -58,6 +93,11 @@ async def on_started() -> None:
 
 @dp.message_created(Command("start"))
 async def handle_start(event: MessageCreated) -> None:
+    access = authorize_max_event(event)
+    if not access.allowed:
+        await event.message.answer(_render_auth_denied(access))
+        return
+
     text = _ru(
         r"\u041f\u0440\u0438\u0432\u0435\u0442. \u042f \u0431\u043e\u0442 "
         r"\u0442\u0435\u043b\u0435\u0444\u043e\u043d\u043d\u043e\u0433\u043e "
@@ -78,6 +118,11 @@ async def handle_start(event: MessageCreated) -> None:
 
 @dp.message_created()
 async def handle_message(event: MessageCreated) -> None:
+    access = authorize_max_event(event)
+    if not access.allowed:
+        await event.message.answer(_render_auth_denied(access))
+        return
+
     text = (event.message.body.text or "").strip()
     if not text:
         await event.message.answer(
@@ -93,7 +138,8 @@ async def handle_message(event: MessageCreated) -> None:
 
     decision = resolve_phonebook_query(text)
     logger.info(
-        "MAX incoming text=%r status=%s",
+        "MAX incoming user_id=%s text=%r status=%s",
+        access.external_user_id,
         text,
         decision.status,
     )

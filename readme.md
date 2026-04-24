@@ -22,6 +22,7 @@
 - [phonebook/llm.py](D:/DS/phone_book_bot-main/phonebook/llm.py:1) — разбор запроса, fallback-эвристики и нормализация
 - [phonebook/bot.py](D:/DS/phone_book_bot-main/phonebook/bot.py:1) — ранжирование, confidence-policy и формат ответа
 - [phonebook/max_bot.py](D:/DS/phone_book_bot-main/phonebook/max_bot.py:1) — polling-бот для MAX через `maxapi`
+- [phonebook/auth.py](D:/DS/phone_book_bot-main/phonebook/auth.py:1) — авторизация по `user_id` для MAX
 - [phonebook/db.py](D:/DS/phone_book_bot-main/phonebook/db.py:1) — доступ к PostgreSQL через `pg8000`
 - [phonebook/logging_config.py](D:/DS/phone_book_bot-main/phonebook/logging_config.py:1) — логирование
 - [sql/synthetic_phonebook.sql](D:/DS/phone_book_bot-main/sql/synthetic_phonebook.sql:1) — синтетическая схема и тестовые данные
@@ -56,6 +57,8 @@ PG_PASSWORD=1234
 PG_SCHEMA=bot_test
 MAX_TOKEN=твой_токен_бота
 MAX_SKIP_UPDATES=true
+AUTH_MAX_ENABLED=true
+AUTH_MAX_TABLE=authorized_users
 ```
 
 Опционально:
@@ -72,6 +75,16 @@ LOG_FILE=logs/phonebook.log
 ```bash
 python scripts\init_synthetic_db.py
 ```
+
+### 3.1. Таблица доступа для MAX
+
+Примените SQL:
+
+```bash
+psql -d phone_book_demo -f sql\authorized_users.sql
+```
+
+После этого заполните таблицу `bot_test.authorized_users` своими `user_id` из MAX.
 
 ### 4. Запуск MAX-бота
 
@@ -108,6 +121,7 @@ docker compose up --build
 - внутри compose приложение ходит в БД по `PG_HOST=postgres`
 - Ollama в compose не включена; если она есть на хосте, контейнер обращается к `host.docker.internal`
 - без `MAX_TOKEN` сервис бота не стартует
+- при `AUTH_MAX_ENABLED=true` MAX-бот отвечает только пользователям из `bot_test.authorized_users`
 
 ## CLI и Streamlit
 

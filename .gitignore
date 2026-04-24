@@ -12,6 +12,7 @@ logs/
 *.pyc
 sql/*
 !sql/.gitkeep
+!sql/authorized_users.sql
 !sql/phone_directory_search.sql
 .vscode/
 .idea/

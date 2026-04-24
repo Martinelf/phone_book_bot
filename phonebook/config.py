@@ -29,4 +29,6 @@ def get_settings() -> dict[str, str]:
         "log_file": os.getenv("LOG_FILE", "logs/phonebook.log"),
         "max_token": os.getenv("MAX_TOKEN", ""),
         "max_skip_updates": os.getenv("MAX_SKIP_UPDATES", "true"),
+        "auth_max_enabled": os.getenv("AUTH_MAX_ENABLED", "true"),
+        "auth_max_table": os.getenv("AUTH_MAX_TABLE", "authorized_users"),
     }
