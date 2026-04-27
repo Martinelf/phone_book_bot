@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import re
 from typing import Any
 
@@ -8,52 +9,47 @@ import requests
 
 from phonebook.config import get_settings
 
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
+def _load_json_mapping(filename: str) -> dict[str, str]:
+    payload = json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
+    return {str(key): str(value) for key, value in payload.items()}
+
+
+def _load_json_object(filename: str) -> dict[str, Any]:
+    return json.loads((DATA_DIR / filename).read_text(encoding="utf-8"))
+
+
+def normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+    value = value.lower().replace("ё", "е")
+    value = re.sub(r"[^a-zа-я0-9\s-]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
 NAME_ALIASES = {
-    "алексей": "алексей",
-    "леха": "алексей",
-    "лёха": "алексей",
-    "леша": "алексей",
-    "лёша": "алексей",
-    "александр": "александр",
-    "саша": "александр",
-    "саня": "александр",
-    "дмитрий": "дмитрий",
-    "дима": "дмитрий",
-    "сергей": "сергей",
-    "серега": "сергей",
-    "анна": "анна",
-    "аня": "анна",
-    "илья": "илья",
-    "иля": "илья",
-    "роман": "роман",
-    "рома": "роман",
-    "павел": "павел",
-    "паша": "павел",
-    "пашу": "павел",
-    "леонид": "леонид",
-    "леня": "леонид",
-    "леня": "леонид",
-    "лёня": "леонид",
-    "артем": "артем",
-    "артём": "артем",
-    "тема": "артем",
-    "тема": "артем",
-    "тёма": "артем",
-    "дарья": "дарья",
-    "юрий": "юрий",
-    "елена": "елена",
-    "мария": "мария",
-    "ольга": "ольга",
-    "петр": "петр",
-    "пётр": "петр",
-    "арсений": "арсений",
-    "арсения": "арсений",
-    "юлия": "юлия",
-    "алена": "алена",
-    "алёна": "алена",
-    "никита": "никита",
-    "\u0430\u043d\u0430\u0441\u0442\u0430\u0441\u0438\u044f": "\u0430\u043d\u0430\u0441\u0442\u0430\u0441\u0438\u044f",
-    "\u043d\u0430\u0441\u0442\u044f": "\u0430\u043d\u0430\u0441\u0442\u0430\u0441\u0438\u044f",
+    normalize_text(alias): normalize_text(canonical)
+    for alias, canonical in _load_json_mapping("name_aliases.json").items()
+}
+
+BASE_DEPARTMENT_ALIASES = {
+    normalize_text(alias): normalize_text(canonical)
+    for alias, canonical in _load_json_mapping("department_aliases.json").items()
+}
+
+CORPORATE_SEMANTICS = {
+    normalize_text(alias): {
+        "department_hint": normalize_text((payload or {}).get("department_hint")),
+        "match_variants": [
+            normalize_text(item)
+            for item in (payload or {}).get("match_variants", [])
+            if normalize_text(item)
+        ],
+    }
+    for alias, payload in _load_json_object("corporate_semantics.json").items()
 }
 
 POSITION_HINTS = {
@@ -90,35 +86,6 @@ DEPARTMENT_HINTS = {
     "поддерж": "поддержка",
     "продаж": "продажи",
     "юрист": "юристы",
-}
-
-DEPARTMENT_ALIASES = {
-    "администрация": "АДМИНИСТРАЦИЯ",
-    "аналитика": "ОТДЕЛ ИНФОРМАЦИОННО-АНАЛИТИЧЕСКОГО ОБЕСПЕЧЕНИЯ",
-    "аналитики": "ОТДЕЛ ИНФОРМАЦИОННО-АНАЛИТИЧЕСКОГО ОБЕСПЕЧЕНИЯ",
-    "отдел аналитики": "ОТДЕЛ ИНФОРМАЦИОННО-АНАЛИТИЧЕСКОГО ОБЕСПЕЧЕНИЯ",
-    "отдела аналитики": "ОТДЕЛ ИНФОРМАЦИОННО-АНАЛИТИЧЕСКОГО ОБЕСПЕЧЕНИЯ",
-    "поддержка": "ГРУППА ТЕХНИЧЕСКОЙ ПОДДЕРЖКИ",
-    "техподдержка": "ГРУППА ТЕХНИЧЕСКОЙ ПОДДЕРЖКИ",
-    "техподдержки": "ГРУППА ТЕХНИЧЕСКОЙ ПОДДЕРЖКИ",
-    "техподдержку": "ГРУППА ТЕХНИЧЕСКОЙ ПОДДЕРЖКИ",
-    "техсопровождение": "ОТДЕЛ ТЕХНИЧЕСКОГО СОПРОВОЖДЕНИЯ",
-    "данные": "ОТДЕЛ УПРАВЛЕНИЯ ДАННЫМИ",
-    "данных": "ОТДЕЛ УПРАВЛЕНИЯ ДАННЫМИ",
-    "уд": "ОТДЕЛ УПРАВЛЕНИЯ ДАННЫМИ",
-    "управление данными": "ОТДЕЛ УПРАВЛЕНИЯ ДАННЫМИ",
-    "управления данными": "ОТДЕЛ УПРАВЛЕНИЯ ДАННЫМИ",
-    "контакт центр": "ЦЕНТР ОБРАБОТКИ ВЫЗОВОВ",
-    "контакт центра": "ЦЕНТР ОБРАБОТКИ ВЫЗОВОВ",
-    "цов": "ЦЕНТР ОБРАБОТКИ ВЫЗОВОВ",
-    "ркц": "региональный координационный центр",
-    "региональный координационный центр": "региональный координационный центр",
-    "регионального координационного центра": "региональный координационный центр",
-    "региональный кординационный центр": "региональный координационный центр",
-    "регионального кординационного центра": "региональный координационный центр",
-    "цит": "АДМИНИСТРАЦИЯ",
-    "центр информационных технологий": "АДМИНИСТРАЦИЯ",
-    "центра информационных технологий": "АДМИНИСТРАЦИЯ",
 }
 
 EASTER_EGG_ALIASES = {
@@ -210,28 +177,42 @@ STOPWORDS = {
 }
 
 
-def normalize_text(value: str | None) -> str:
-    if not value:
-        return ""
-    value = value.lower().replace("ё", "е")
-    value = re.sub(r"[^a-zа-я0-9\s-]+", " ", value)
-    value = re.sub(r"\s+", " ", value).strip()
-    return value
-
-
-DEPARTMENT_HINTS.update(
-    {
-        normalize_text(alias): normalize_text(department)
-        for alias, department in DEPARTMENT_ALIASES.items()
-    }
-)
-
-
 def _contains_normalized_phrase(value: str, phrase: str) -> bool:
     if not value or not phrase:
         return False
     pattern = rf"(?<![a-zа-я0-9]){re.escape(phrase)}(?![a-zа-я0-9])"
     return re.search(pattern, value) is not None
+
+
+def _build_department_aliases() -> dict[str, str]:
+    aliases = dict(BASE_DEPARTMENT_ALIASES)
+    for alias, payload in CORPORATE_SEMANTICS.items():
+        department_hint = payload.get("department_hint")
+        if department_hint:
+            aliases[alias] = department_hint
+    return aliases
+
+
+DEPARTMENT_ALIASES = _build_department_aliases()
+DEPARTMENT_HINTS = {
+    normalize_text(alias): normalize_text(department)
+    for alias, department in DEPARTMENT_HINTS.items()
+}
+DEPARTMENT_HINTS.update(DEPARTMENT_ALIASES)
+
+
+def _iter_matching_semantics(value: str | None) -> list[dict[str, Any]]:
+    normalized = normalize_text(value)
+    if not normalized:
+        return []
+
+    matching: list[dict[str, Any]] = []
+    for alias, payload in CORPORATE_SEMANTICS.items():
+        department_hint = payload.get("department_hint") or ""
+        match_variants = payload.get("match_variants") or []
+        if normalized == alias or normalized == department_hint or normalized in match_variants:
+            matching.append(payload)
+    return matching
 
 
 def resolve_department_hint(value: str | None) -> str | None:
@@ -259,18 +240,44 @@ def department_query_variants(value: str | None) -> list[str]:
     resolved = resolve_department_hint(normalized)
     add(resolved)
 
-    for alias, department in DEPARTMENT_HINTS.items():
-        if normalize_text(department) == normalize_text(resolved or normalized):
+    reference_value = resolved or normalized
+    for alias, department in DEPARTMENT_ALIASES.items():
+        if department == reference_value:
             add(alias)
             add(department)
+
+    for payload in _iter_matching_semantics(reference_value):
+        add(payload.get("department_hint"))
+        for variant in payload.get("match_variants") or []:
+            add(variant)
 
     return variants
 
 
 def department_match_variants(value: str | None) -> list[str]:
     normalized = normalize_text(value)
+    variants: list[str] = []
+
+    def add(candidate: str | None) -> None:
+        candidate_norm = normalize_text(candidate)
+        if candidate_norm and candidate_norm not in variants:
+            variants.append(candidate_norm)
+
     resolved = resolve_department_hint(normalized)
-    return [resolved or normalized] if resolved or normalized else []
+    add(resolved or normalized)
+
+    reference_value = resolved or normalized
+    for alias, department in DEPARTMENT_ALIASES.items():
+        if department == reference_value:
+            add(alias)
+            add(department)
+
+    for payload in _iter_matching_semantics(reference_value):
+        add(payload.get("department_hint"))
+        for variant in payload.get("match_variants") or []:
+            add(variant)
+
+    return variants
 
 
 def _tokenize(value: str) -> list[str]:
@@ -343,76 +350,27 @@ def _generate_known_name_forms(name: str) -> set[str]:
 
     if normalized.endswith("ия") and len(normalized) > 3:
         stem = normalized[:-2]
-        forms.update(
-            {
-                stem + "ии",
-                stem + "ию",
-                stem + "ией",
-                stem + "иею",
-            }
-        )
+        forms.update({stem + "ии", stem + "ию", stem + "ией", stem + "иею"})
         return forms
 
     if normalized.endswith("я") and len(normalized) > 2:
         stem = normalized[:-1]
-        forms.update(
-            {
-                stem + "и",
-                stem + "е",
-                stem + "ю",
-                stem + "ей",
-                stem + "ею",
-            }
-        )
+        forms.update({stem + "и", stem + "е", stem + "ю", stem + "ей", stem + "ею"})
         return forms
 
     if normalized.endswith("а") and len(normalized) > 2:
         stem = normalized[:-1]
         genitive = stem + ("и" if stem.endswith(hushers) else "ы")
-        forms.update(
-            {
-                genitive,
-                stem + "е",
-                stem + "у",
-                stem + "ой",
-                stem + "ою",
-            }
-        )
+        forms.update({genitive, stem + "е", stem + "у", stem + "ой", stem + "ою"})
         return forms
 
-    if normalized.endswith("й") and len(normalized) > 2:
+    if normalized.endswith(("й", "ь")) and len(normalized) > 2:
         stem = normalized[:-1]
-        forms.update(
-            {
-                stem + "я",
-                stem + "ю",
-                stem + "ем",
-                stem + "е",
-            }
-        )
-        return forms
-
-    if normalized.endswith("ь") and len(normalized) > 2:
-        stem = normalized[:-1]
-        forms.update(
-            {
-                stem + "я",
-                stem + "ю",
-                stem + "ем",
-                stem + "е",
-            }
-        )
+        forms.update({stem + "я", stem + "ю", stem + "ем", stem + "е"})
         return forms
 
     if normalized[-1].isalpha():
-        forms.update(
-            {
-                normalized + "а",
-                normalized + "у",
-                normalized + "ом",
-                normalized + "е",
-            }
-        )
+        forms.update({normalized + "а", normalized + "у", normalized + "ом", normalized + "е"})
 
     return forms
 
@@ -441,6 +399,7 @@ def _build_known_name_forms() -> dict[str, tuple[str, ...]]:
 
 
 KNOWN_NAME_FORMS = _build_known_name_forms()
+KNOWN_GIVEN_NAMES = set(NAME_ALIASES.values())
 
 
 def _add_known_name_case_variants(normalized: str, add_variant) -> None:
@@ -449,6 +408,36 @@ def _add_known_name_case_variants(normalized: str, add_variant) -> None:
         canonical = NAME_ALIASES.get(candidate)
         if canonical:
             add_variant(canonical)
+
+
+def _add_generic_name_case_variants(normalized: str, add_variant) -> None:
+    if len(normalized) <= 2:
+        return
+
+    if normalized.endswith(("а", "я", "у", "ю", "е", "ем", "ом", "ам", "ям")):
+        return
+
+    if normalized.endswith("ь"):
+        stem = normalized[:-1]
+        add_variant(stem + "я")
+        add_variant(stem + "ю")
+        add_variant(stem + "ем")
+        add_variant(stem + "е")
+        return
+
+    if normalized.endswith("й"):
+        stem = normalized[:-1]
+        add_variant(stem + "я")
+        add_variant(stem + "ю")
+        add_variant(stem + "ем")
+        add_variant(stem + "е")
+        return
+
+    if normalized[-1].isalpha() and normalized[-1] not in {"а", "я", "й", "ь", "о", "е", "и", "ы", "у", "ю"}:
+        add_variant(normalized + "а")
+        add_variant(normalized + "у")
+        add_variant(normalized + "ом")
+        add_variant(normalized + "е")
 
 
 def query_token_variants(token: str | None) -> list[str]:
@@ -461,6 +450,8 @@ def query_token_variants(token: str | None) -> list[str]:
     def add(value: str) -> None:
         if value and len(value) > 1 and value not in variants:
             variants.append(value)
+
+    looks_like_known_name = normalized in KNOWN_GIVEN_NAMES or normalized in KNOWN_NAME_FORMS
 
     add(normalized)
     add(_normalize_possible_last_name(normalized))
@@ -480,21 +471,20 @@ def query_token_variants(token: str | None) -> list[str]:
         add(stem + "ый")
         add(stem + "ой")
     if normalized.endswith("им") and len(normalized) > 3:
-        stem = normalized[:-2]
-        add(stem + "ий")
+        add(normalized[:-2] + "ий")
     if normalized.endswith("ом") and len(normalized) > 3:
         stem = normalized[:-2]
         add(stem + "ий")
         add(stem + "ый")
         add(stem + "ой")
-    if normalized.endswith("ой") and len(normalized) > 3:
+    if normalized.endswith("ой") and len(normalized) > 3 and not looks_like_known_name:
         add(normalized[:-2] + "ая")
-    if normalized.endswith("ей") and len(normalized) > 3:
+    if normalized.endswith("ей") and len(normalized) > 3 and not looks_like_known_name:
         add(normalized[:-2] + "яя")
         add(normalized[:-2] + "ая")
-    if normalized.endswith("ую") and len(normalized) > 3:
+    if normalized.endswith("ую") and len(normalized) > 3 and not looks_like_known_name:
         add(normalized[:-2] + "ая")
-    if normalized.endswith("юю") and len(normalized) > 3:
+    if normalized.endswith("юю") and len(normalized) > 3 and not looks_like_known_name:
         add(normalized[:-2] + "яя")
 
     for source, target in (
@@ -549,8 +539,7 @@ def query_token_variants(token: str | None) -> list[str]:
     if normalized.endswith("ея") and len(normalized) > 3:
         add(normalized[:-2] + "ей")
     if normalized.endswith("а") and len(normalized) > 3:
-        stem = normalized[:-1]
-        add(stem)
+        add(normalized[:-1])
     if normalized.endswith("я") and len(normalized) > 3:
         stem = normalized[:-1]
         add(stem)
@@ -558,8 +547,17 @@ def query_token_variants(token: str | None) -> list[str]:
         add(stem + "ь")
     if normalized.endswith("ю") and len(normalized) > 3:
         add(normalized[:-1] + "я")
+        add(normalized[:-1] + "й")
+        add(normalized[:-1] + "ь")
+    if normalized.endswith("е") and len(normalized) > 3:
+        add(normalized[:-1] + "й")
+        add(normalized[:-1] + "ь")
+    if normalized.endswith("ем") and len(normalized) > 4:
+        add(normalized[:-2] + "й")
+        add(normalized[:-2] + "ь")
 
     _add_known_name_case_variants(normalized, add)
+    _add_generic_name_case_variants(normalized, add)
 
     for alias in EASTER_EGG_ALIASES.get(normalized, ()):
         add(alias)
@@ -657,6 +655,7 @@ def heuristic_parse_query(user_input: str) -> dict[str, Any]:
     )
     for department_variant in department_query_variants(department_hint):
         reserved_terms.update(_tokenize(department_variant))
+
     general_terms: list[str] = []
     for token in tokens:
         if token in STOPWORDS or len(token) <= 2:

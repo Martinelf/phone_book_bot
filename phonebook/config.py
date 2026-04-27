@@ -31,4 +31,6 @@ def get_settings() -> dict[str, str]:
         "max_skip_updates": os.getenv("MAX_SKIP_UPDATES", "true"),
         "auth_max_enabled": os.getenv("AUTH_MAX_ENABLED", "true"),
         "auth_max_table": os.getenv("AUTH_MAX_TABLE", "authorized_users"),
+        "audit_enabled": os.getenv("AUDIT_ENABLED", "false"),
+        "audit_table": os.getenv("AUDIT_TABLE", "query_audit_log"),
     }

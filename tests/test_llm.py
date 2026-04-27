@@ -27,6 +27,9 @@ def test_heuristic_parse_ignores_service_words_around_last_name():
 def test_query_token_variants_supports_case_forms_and_easter_egg():
     assert "аленид" in query_token_variants("Аленида")
     assert "игорь" in query_token_variants("Игоря")
+    assert "игоря" in query_token_variants("Игорь")
+    assert "игорю" in query_token_variants("Игорь")
+    assert "игорем" in query_token_variants("Игорь")
     assert "аленид" in query_token_variants("Тони")
     assert "никита" in query_token_variants("Никиты")
     assert "сергей" in query_token_variants("Сергея")

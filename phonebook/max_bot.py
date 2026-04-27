@@ -7,7 +7,7 @@ from maxapi import Bot, Dispatcher
 from maxapi.types import Command, MessageCreated
 
 from phonebook.auth import AuthDecision, authorize_max_event
-from phonebook.bot import resolve_phonebook_query
+from phonebook.bot import SearchContext, resolve_phonebook_query
 from phonebook.config import get_settings
 from phonebook.logging_config import configure_logging
 
@@ -136,7 +136,14 @@ async def handle_message(event: MessageCreated) -> None:
         )
         return
 
-    decision = resolve_phonebook_query(text)
+    decision = resolve_phonebook_query(
+        text,
+        context=SearchContext(
+            source=access.source,
+            external_user_id=access.external_user_id,
+            role=access.role or "user",
+        ),
+    )
     logger.info(
         "MAX incoming user_id=%s text=%r status=%s",
         access.external_user_id,

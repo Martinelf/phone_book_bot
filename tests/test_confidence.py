@@ -27,7 +27,7 @@ def test_resolve_query_returns_found_when_there_are_results(monkeypatch):
     monkeypatch.setattr("phonebook.bot.search_phonebook", fake_search)
     decision = resolve_phonebook_query("найди проектного менеджера Иванова")
 
-    assert decision.status == "found"
+    assert decision.status == "confident"
     assert decision.results[0]["id_phone_directory"] == 21
 
 
@@ -49,7 +49,7 @@ def test_resolve_query_returns_not_found_when_there_are_no_results(monkeypatch):
     monkeypatch.setattr("phonebook.bot.search_phonebook", fake_search)
     decision = resolve_phonebook_query("покажи рецепт борща")
 
-    assert decision.status == "not_found"
+    assert decision.status == "no_match"
     assert decision.results == []
 
 
