@@ -124,15 +124,13 @@ def test_resolve_query_masks_sensitive_fields_by_role(monkeypatch):
     monkeypatch.setattr("phonebook.bot.search_phonebook", fake_search)
 
     user_decision = resolve_phonebook_query("иванов петр", context=SearchContext(source="max", role="user"))
-    manager_decision = resolve_phonebook_query("иванов петр", context=SearchContext(source="max", role="manager"))
-    hr_decision = resolve_phonebook_query("иванов петр", context=SearchContext(source="max", role="hr"))
+    admin_decision = resolve_phonebook_query("иванов петр", context=SearchContext(source="max", role="admin"))
 
     assert user_decision.status == "confident"
     assert user_decision.results[0]["mobile_phone"] is None
     assert user_decision.results[0]["email"] is None
-    assert manager_decision.results[0]["mobile_phone"] == "+79990001122"
-    assert manager_decision.results[0]["email"] is None
-    assert hr_decision.results[0]["email"] == "ivanov@example.org"
+    assert admin_decision.results[0]["mobile_phone"] == "+79990001122"
+    assert admin_decision.results[0]["email"] == "ivanov@example.org"
 
 
 def test_resolve_query_writes_audit_entry(monkeypatch):
@@ -160,7 +158,7 @@ def test_resolve_query_writes_audit_entry(monkeypatch):
 
     decision = resolve_phonebook_query(
         "иванов петр",
-        context=SearchContext(source="max", external_user_id="123", role="manager"),
+        context=SearchContext(source="max", external_user_id="123", role="admin"),
     )
 
     assert decision.status == "confident"

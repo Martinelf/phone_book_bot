@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import re
 from typing import Any
 
 from phonebook.config import get_settings
 from phonebook.db import execute_query
+from phonebook.permissions import DEFAULT_ROLE, normalize_role
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ def extract_max_user_id(event: Any) -> str | None:
     return None
 
 
-def _load_user_access(source: str, external_user_id: str) -> dict[str, Any] | None:
+def _load_user_record(source: str, external_user_id: str) -> dict[str, Any] | None:
     settings = get_settings()
     schema = settings["pg_schema"]
     table = settings["auth_max_table"]
@@ -78,10 +80,90 @@ def _load_user_access(source: str, external_user_id: str) -> dict[str, Any] | No
         FROM {schema}.{table}
         WHERE source = %s
           AND external_user_id = %s
-          AND is_active = TRUE
         LIMIT 1
     """
     return execute_query(query, (source, external_user_id), fetch="one")
+
+
+def _load_user_access(source: str, external_user_id: str) -> dict[str, Any] | None:
+    row = _load_user_record(source, external_user_id)
+    if not row or not row.get("is_active"):
+        return None
+    return row
+
+
+def _normalize_external_user_id(value: str | int) -> str:
+    normalized = str(value).strip()
+    if not normalized or not re.fullmatch(r"\d+", normalized):
+        raise ValueError("external_user_id must contain digits only")
+    return normalized
+
+
+def grant_user_access(
+    *,
+    source: str,
+    external_user_id: str | int,
+    role: str | None = None,
+    display_name: str | None = None,
+    comment: str | None = None,
+) -> dict[str, Any]:
+    settings = get_settings()
+    schema = settings["pg_schema"]
+    table = settings["auth_max_table"]
+    normalized_user_id = _normalize_external_user_id(external_user_id)
+    normalized_role = normalize_role(role or DEFAULT_ROLE)
+
+    query = f"""
+        INSERT INTO {schema}.{table} (
+            source,
+            external_user_id,
+            display_name,
+            role,
+            is_active,
+            comment
+        )
+        VALUES (%s, %s, %s, %s, TRUE, %s)
+        ON CONFLICT (source, external_user_id)
+        DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            role = EXCLUDED.role,
+            is_active = TRUE,
+            comment = EXCLUDED.comment
+    """
+    execute_query(
+        query,
+        (
+            source,
+            normalized_user_id,
+            (display_name or "").strip() or None,
+            normalized_role,
+            (comment or "").strip() or None,
+        ),
+    )
+
+    row = _load_user_record(source, normalized_user_id)
+    if not row:
+        raise RuntimeError("Could not load granted user access record")
+    return row
+
+
+def revoke_user_access(*, source: str, external_user_id: str | int) -> bool:
+    settings = get_settings()
+    schema = settings["pg_schema"]
+    table = settings["auth_max_table"]
+    normalized_user_id = _normalize_external_user_id(external_user_id)
+    existing = _load_user_record(source, normalized_user_id)
+    if not existing:
+        return False
+
+    query = f"""
+        UPDATE {schema}.{table}
+        SET is_active = FALSE
+        WHERE source = %s
+          AND external_user_id = %s
+    """
+    execute_query(query, (source, normalized_user_id))
+    return True
 
 
 def authorize_max_event(event: Any) -> AuthDecision:

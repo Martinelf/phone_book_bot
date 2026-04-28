@@ -14,6 +14,8 @@
 - учитывать алиасы сотрудников и разговорные названия отделов
 - ранжировать кандидатов и возвращать `top-k`
 - различать режимы `confident`, `ambiguous`, `low_confidence`, `no_match`, `not_understood`
+- ограничивать доступ через allowlist `bot_test.authorized_users`
+- поддерживать две роли доступа: `user` и `admin`
 - работать через MAX, CLI, `eval` и опционально `Streamlit`
 - писать диагностические логи в файл и консоль
 
@@ -84,7 +86,34 @@ python scripts\init_synthetic_db.py
 psql -d phone_book_demo -f sql\authorized_users.sql
 ```
 
-После этого заполните таблицу `bot_test.authorized_users` своими `user_id` из MAX.
+Дальше нужен первый администратор. Его надо добавить в `bot_test.authorized_users` один раз вручную:
+
+```sql
+INSERT INTO bot_test.authorized_users (source, external_user_id, display_name, role, comment)
+VALUES ('max', '<your_user_id>', 'Your Name', 'admin', 'bootstrap admin');
+```
+
+После этого доступами можно управлять уже из самого бота.
+
+Роли:
+
+- `user` — обычный доступ к поиску, без показа `mobile_phone` и `email`
+- `admin` — полный доступ к данным и командам управления allowlist
+
+Команды администратора в MAX:
+
+- `/whoami` — показать свой `user_id` и роль
+- `/grant <user_id> [role] [display name]` — выдать или обновить доступ
+- `/revoke <user_id>` — отключить доступ
+- `/access` — краткая справка по командам доступа
+
+Примеры:
+
+```text
+/grant 245154188 admin Ivan Ivanov
+/grant 261988673 user
+/revoke 261988673
+```
 
 ### 4. Запуск MAX-бота
 
@@ -122,6 +151,7 @@ docker compose up --build
 - Ollama в compose не включена; если она есть на хосте, контейнер обращается к `host.docker.internal`
 - без `MAX_TOKEN` сервис бота не стартует
 - при `AUTH_MAX_ENABLED=true` MAX-бот отвечает только пользователям из `bot_test.authorized_users`
+- первый `admin` для allowlist создаётся вручную в БД; дальше доступ можно выдавать через команды бота
 
 ## CLI и Streamlit
 

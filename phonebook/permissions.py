@@ -3,12 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 DEFAULT_ROLE = "user"
-KNOWN_ROLES = {"user", "manager", "hr", "admin"}
+KNOWN_ROLES = {"user", "admin"}
 
 ROLE_FIELD_POLICY = {
     "user": {"mobile_phone": False, "email": False},
-    "manager": {"mobile_phone": True, "email": False},
-    "hr": {"mobile_phone": True, "email": True},
     "admin": {"mobile_phone": True, "email": True},
 }
 
