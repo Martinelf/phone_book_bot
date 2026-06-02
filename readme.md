@@ -1,12 +1,12 @@
 # Phonebook Bot
 
-`Phonebook Bot` — MVP для поиска сотрудника по свободному текстовому запросу с основным интерфейсом через `MAX`.
+`Phonebook Bot` - MVP для поиска сотрудников по свободному текстовому запросу. Основной интерфейс рассчитан на `MAX`, но проект можно запускать и локально: через CLI, `Streamlit` и eval-сценарии.
 
 Текущий пайплайн:
 
-`запрос пользователя -> разбор признаков -> фиксированный поиск по БД -> ранжирование -> confidence-policy`
+`запрос -> разбор признаков -> фиксированный поиск по БД -> ранжирование -> confidence-policy`
 
-Проект не генерирует произвольный SQL через LLM. LLM здесь опциональна и используется только для извлечения признаков из текста. Если Ollama недоступна, бот работает через fallback-эвристику.
+LLM в проекте опциональна. Она используется только для извлечения признаков из текста. Если Ollama недоступна, бот переключается на эвристический fallback.
 
 ## Что умеет
 
@@ -15,39 +15,51 @@
 - ранжировать кандидатов и возвращать `top-k`
 - различать режимы `confident`, `ambiguous`, `low_confidence`, `no_match`, `not_understood`
 - ограничивать доступ через allowlist `bot_test.authorized_users`
-- поддерживать две роли доступа: `user` и `admin`
+- поддерживать роли `user` и `admin`
 - работать через MAX, CLI, `eval` и опционально `Streamlit`
-- писать диагностические логи в файл и консоль
+- писать диагностические логи в консоль и в файл
 
-## Архитектура
+## Структура проекта
 
-- [phonebook/llm.py](D:/DS/phone_book_bot-main/phonebook/llm.py:1) — разбор запроса, fallback-эвристики и нормализация
-- [phonebook/bot.py](D:/DS/phone_book_bot-main/phonebook/bot.py:1) — ранжирование, confidence-policy и формат ответа
-- [phonebook/max_bot.py](D:/DS/phone_book_bot-main/phonebook/max_bot.py:1) — polling-бот для MAX через `maxapi`
-- [phonebook/auth.py](D:/DS/phone_book_bot-main/phonebook/auth.py:1) — авторизация по `user_id` для MAX
-- [phonebook/db.py](D:/DS/phone_book_bot-main/phonebook/db.py:1) — доступ к PostgreSQL через `pg8000`
-- [phonebook/logging_config.py](D:/DS/phone_book_bot-main/phonebook/logging_config.py:1) — логирование
-- [sql/synthetic_phonebook.sql](D:/DS/phone_book_bot-main/sql/synthetic_phonebook.sql:1) — синтетическая схема и тестовые данные
-- [scripts/run_max_bot.py](D:/DS/phone_book_bot-main/scripts/run_max_bot.py:1) — простой запуск MAX-бота
-- [scripts/init_synthetic_db.py](D:/DS/phone_book_bot-main/scripts/init_synthetic_db.py:1) — инициализация синтетической БД
-- [scripts/run_eval.py](D:/DS/phone_book_bot-main/scripts/run_eval.py:1) — локальный eval
-- [docker-compose.yml](D:/DS/phone_book_bot-main/docker-compose.yml:1) — `postgres` + сервис бота
+- `phonebook/llm.py` - разбор запроса, нормализация и fallback-эвристики
+- `phonebook/bot.py` - поиск, ранжирование и итоговое решение
+- `phonebook/max_bot.py` - polling-бот для MAX
+- `phonebook/auth.py` - авторизация пользователей MAX через allowlist
+- `phonebook/db.py` - доступ к PostgreSQL через `pg8000`
+- `phonebook/logging_config.py` - настройка логирования
+- `scripts/init_synthetic_db.py` - загрузка синтетической БД из SQL-файла
+- `scripts/run_max_bot.py` - удобный локальный запуск MAX-бота
+- `scripts/run_eval.py` - локальный eval по файлу `eval/phonebook_queries.jsonl`
+- `apps/streamlit_app.py` - простой веб-интерфейс для отладки
+- `sql/authorized_users.sql` - таблица allowlist для MAX
+- `sql/phone_directory_search.sql` - SQL-функция поиска
+- `sql/query_audit_log.sql` - таблица аудита запросов
 
-## Быстрый старт без Docker
+## Требования
 
-### 1. Окружение
+- Python 3.11
+- PostgreSQL 14+ или совместимая версия
+- `MAX_TOKEN`, только если нужен запуск MAX-бота
+- Ollama, только если нужен LLM-разбор вместо fallback-эвристики
 
-```bash
-conda create -n phonebook-bot python=3.11 -y
-conda activate phonebook-bot
-cd D:\DS\phone_book_bot-main
+## Быстрый старт
+
+### 1. Установить зависимости
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
 ```
 
-### 2. Настройка `.env`
+Если удобнее, можно использовать уже существующий `venv` или Conda.
 
-Минимально нужны:
+### 2. Настроить `.env`
+
+Минимальный шаблон уже есть в `.env.example`.
+
+Обязательные переменные для локальной работы с БД:
 
 ```env
 PG_HOST=localhost
@@ -55,190 +67,177 @@ PG_PORT=5432
 PG_DB=phone_book_demo
 PG_ADMIN_DB=postgres
 PG_USER=postgres
-PG_PASSWORD=1234
+PG_PASSWORD=change_me
 PG_SCHEMA=bot_test
-MAX_TOKEN=твой_токен_бота
+```
+
+Если нужен MAX-бот, дополнительно задай:
+
+```env
+MAX_TOKEN=your_max_token
 MAX_SKIP_UPDATES=true
 AUTH_MAX_ENABLED=true
 AUTH_MAX_TABLE=authorized_users
 ```
 
-Опционально:
+Опциональные настройки:
 
 ```env
 OLLAMA_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3.5:2b
 LOG_LEVEL=INFO
 LOG_FILE=logs/phonebook.log
+AUDIT_ENABLED=false
+AUDIT_TABLE=query_audit_log
 ```
 
-### 3. Синтетическая БД
+### 3. Подготовить БД
 
-```bash
+Проект ожидает PostgreSQL и SQL-объекты в схеме `bot_test`.
+
+В репозитории уже есть служебные SQL-файлы:
+
+- `sql/authorized_users.sql`
+- `sql/phone_directory_search.sql`
+- `sql/query_audit_log.sql`
+
+Важно: `scripts/init_synthetic_db.py` и `docker-compose.yml` ожидают файл `sql/synthetic_phonebook.sql`, но сейчас его нет в репозитории. Поэтому перед запуском одного из этих сценариев нужно:
+
+1. добавить `sql/synthetic_phonebook.sql` в проект, если он у тебя есть отдельно
+2. или адаптировать `scripts/init_synthetic_db.py` и `docker-compose.yml` под свою схему и данные
+
+После появления файла инициализация выглядит так:
+
+```powershell
 python scripts\init_synthetic_db.py
 ```
 
-### 3.1. Таблица доступа для MAX
+Таблицу доступа для MAX можно применить отдельно:
 
-Примените SQL:
-
-```bash
+```powershell
 psql -d phone_book_demo -f sql\authorized_users.sql
 ```
 
-Дальше нужен первый администратор. Его надо добавить в `bot_test.authorized_users` один раз вручную:
+### 4. Запустить приложение
+
+CLI:
+
+```powershell
+python main.py
+```
+
+MAX-бот:
+
+```powershell
+python scripts\run_max_bot.py
+```
+
+или
+
+```powershell
+python -m phonebook.max_bot
+```
+
+Streamlit:
+
+```powershell
+python -m streamlit run apps\streamlit_app.py
+```
+
+Eval:
+
+```powershell
+python scripts\run_eval.py
+```
+
+Тесты:
+
+```powershell
+pytest
+```
+
+## Docker
+
+`docker-compose.yml` поднимает:
+
+- `postgres`
+- `max-bot`
+
+Базовый запуск:
+
+```powershell
+docker compose up --build
+```
+
+Но здесь действует то же ограничение: compose-манифест ожидает файл `sql/synthetic_phonebook.sql`. Пока его нет в репозитории, Docker-сценарий нужно либо дополнить этим файлом, либо изменить volume/инициализацию под фактическую схему.
+
+Что ещё важно:
+
+- внутри compose приложение ходит в БД по `PG_HOST=postgres`
+- Ollama в compose не поднимается; по умолчанию используется `host.docker.internal`
+- без `MAX_TOKEN` сервис `max-bot` завершится с ошибкой
+
+## Доступ в MAX
+
+Если `AUTH_MAX_ENABLED=true`, бот отвечает только пользователям из allowlist.
+
+Первого администратора нужно добавить в `bot_test.authorized_users` вручную:
 
 ```sql
 INSERT INTO bot_test.authorized_users (source, external_user_id, display_name, role, comment)
 VALUES ('max', '<your_user_id>', 'Your Name', 'admin', 'bootstrap admin');
 ```
 
-После этого доступами можно управлять уже из самого бота.
+После этого доступами можно управлять из самого бота.
+
+Команды:
+
+- `/whoami` - показать свой `user_id` и роль
+- `/grant <user_id> [role] [display name]` - выдать или обновить доступ
+- `/revoke <user_id>` - отключить доступ
+- `/access` - краткая справка по командам доступа
 
 Роли:
 
-- `user` — обычный доступ к поиску, без показа `mobile_phone` и `email`
-- `admin` — полный доступ к данным и командам управления allowlist
+- `user` - обычный доступ к поиску
+- `admin` - полный доступ к данным и управлению allowlist
 
-Команды администратора в MAX:
-
-- `/whoami` — показать свой `user_id` и роль
-- `/grant <user_id> [role] [display name]` — выдать или обновить доступ
-- `/revoke <user_id>` — отключить доступ
-- `/access` — краткая справка по командам доступа
-
-Примеры:
-
-```text
-/grant 245154188 admin Ivan Ivanov
-/grant 261988673 user
-/revoke 261988673
-```
-
-### 4. Запуск MAX-бота
-
-```bash
-python scripts\run_max_bot.py
-```
-
-Или:
-
-```bash
-python -m phonebook.max_bot
-```
-
-## Docker
-
-Если нужен воспроизводимый запуск для другого человека, используй Docker.
-
-### Что поднимается
-
-- `postgres` с автоматической инициализацией синтетической БД
-- `max-bot` как основной сервис приложения
-
-### Запуск
-
-1. Заполни `.env` как минимум для `MAX_TOKEN` и `PG_PASSWORD`.
-2. Подними сервисы:
-
-```bash
-docker compose up --build
-```
-
-### Что важно
-
-- внутри compose приложение ходит в БД по `PG_HOST=postgres`
-- Ollama в compose не включена; если она есть на хосте, контейнер обращается к `host.docker.internal`
-- без `MAX_TOKEN` сервис бота не стартует
-- при `AUTH_MAX_ENABLED=true` MAX-бот отвечает только пользователям из `bot_test.authorized_users`
-- первый `admin` для allowlist создаётся вручную в БД; дальше доступ можно выдавать через команды бота
-
-## CLI и Streamlit
-
-Это вспомогательные режимы для локальной отладки.
-
-### CLI
-
-```bash
-python main.py
-```
-
-### Streamlit
-
-```bash
-python -m streamlit run apps\streamlit_app.py
-```
-
-## Eval
-
-```bash
-python scripts\run_eval.py
-```
-
-В отчёте есть:
-
-- `top-1`
-- `top-3`
-- `no-answer`
-- разбивка по категориям
-- разбивка по confidence-статусам
-
-## Тесты
-
-```bash
-pytest
-```
+Если нужно временно отключить проверку доступа для разработки, установи `AUTH_MAX_ENABLED=false`.
 
 ## Confidence-policy
 
-Бот принимает отдельное решение перед выдачей результата:
+Перед ответом бот принимает отдельное решение:
 
-- `confident` — уверенный ответ, кандидаты показываются
-- `ambiguous` — найдено несколько очень похожих кандидатов
-- `low_confidence` — сигнал слишком слабый, бот просит уточнение
-- `no_match` — по данным БД никого похожего не нашлось
-- `not_understood` — запрос слишком шумный или нерелевантный
+- `confident` - уверенный ответ, кандидаты показываются сразу
+- `ambiguous` - найдено несколько очень похожих кандидатов
+- `low_confidence` - сигнал слишком слабый, бот просит уточнение
+- `no_match` - по данным БД никто не найден
+- `not_understood` - запрос нерелевантный или слишком шумный
 
-Это нужно, чтобы бот не выдумывал ответ на слабом сигнале.
+Это нужно, чтобы бот не выдавал случайный ответ при слабом совпадении.
 
 ## Логирование
 
-Лог пишется в консоль и файл, по умолчанию:
+По умолчанию лог пишется в консоль и в файл `logs/phonebook.log`.
 
-- [logs/phonebook.log](D:/DS/phone_book_bot-main/logs/phonebook.log)
+Логирование настраивается переменными:
 
-Что логируется:
+- `LOG_LEVEL`
+- `LOG_FILE`
+
+В файл попадают, в частности:
 
 - исходный запрос
 - источник разбора (`heuristic` или `llm`)
 - confidence-статус
-- уверенность
+- итоговая уверенность
 - распарсенные признаки
 - `top_ids` кандидатов
 
-## Использованная библиотека MAX
+## MAX API
 
-Для интеграции с MAX используется `maxapi`:
+Для интеграции с MAX используется библиотека `maxapi`.
 
-- PyPI: https://pypi.org/project/maxapi/
+- PyPI: [maxapi](https://pypi.org/project/maxapi/)
 
 В проекте используется режим `start_polling`, а не webhook.
-
-## Текущее состояние
-
-Проект сейчас — рабочий внутренний MVP.
-
-Подходит для:
-
-- R&D
-- демонстрации подхода
-- тюнинга ранжирования
-- запуска локального чат-бота в MAX
-- переноса на реальную БД позже
-
-До продового уровня ещё нужны:
-
-- подключение реальной схемы и реальных данных
-- более широкий eval
-- интеграционные тесты на реальные данные
-- политика доступа и маскировка чувствительных полей
